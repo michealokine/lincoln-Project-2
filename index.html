@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+  <title>UCC Abode · Student App</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0f172a; font-family: 'Inter', sans-serif; display: flex; justify-content: center; }
+    .app-container { max-width: 500px; width: 100%; background: #f8fafc; min-height: 100vh; box-shadow: 0 0 30px rgba(0,0,0,0.15); position: relative; }
+    
+    /* ============ HEADER WITH CUSTOM HOUSE LOGO ============ */
+    .app-header {
+      background: linear-gradient(135deg, #0f2b3d 0%, #1a4a6e 100%);
+      padding: 1.2rem 1.5rem;
+      text-align: center;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .app-header .logo-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.8rem;
+    }
+    .app-header .logo-img {
+      width: 50px;
+      height: 50px;
+      border-radius: 12px;
+      background: white;
+      padding: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+      flex-shrink: 0;
+    }
+    .app-header .logo-text {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .app-header .logo-text h1 {
+      font-size: 1.8rem;
+      color: white;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.5px;
+    }
+    .app-header .logo-text .tagline {
+      font-size: 0.65rem;
+      color: #cbd5e6;
+      opacity: 0.8;
+      letter-spacing: 0.3px;
+    }
+    
+    /* ============ AUTH SCREEN ============ */
+    .auth-screen { background: #f8fafc; min-height: 100vh; }
+    .auth-card { background: white; border-radius: 2rem; padding: 1.8rem; margin: 1rem; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .tab-bar { display: flex; gap: 0.8rem; border-bottom: 2px solid #e2e8f0; margin-bottom: 1.5rem; }
+    .tab-btn { flex: 1; background: none; border: none; padding: 0.75rem; font-weight: 600; font-size: 1rem; color: #5b6e8c; cursor: pointer; }
+    .tab-btn.active { color: #1e4a6e; border-bottom: 3px solid #1e4a6e; }
+    .auth-form { display: none; }
+    .auth-form.active-form { display: block; animation: fade 0.25s ease; }
+    @keyframes fade { from { opacity: 0; transform: translateY(6px);} to { opacity: 1; transform: translateY(0);} }
+    .input-group { margin-bottom: 1.2rem; }
+    .input-group label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.4rem; color: #1e293b; }
+    .input-group input { width: 100%; padding: 0.85rem 1rem; border: 1.5px solid #e2edf7; border-radius: 1.2rem; font-size: 0.9rem; outline: none; }
+    .input-group input:focus { border-color: #1e4a6e; }
+    .btn-primary { background: #1e4a6e; color: white; width: 100%; padding: 0.9rem; border: none; border-radius: 2rem; font-weight: 700; font-size: 1rem; margin-top: 0.5rem; cursor: pointer; }
+    .demo-note { font-size: 0.7rem; text-align: center; margin-top: 1rem; color: #5f7f9e; background: #f1f5f9; padding: 0.5rem; border-radius: 1.5rem; }
+    .info-message { font-size: 0.8rem; margin-top: 0.75rem; text-align: center; padding: 0.5rem; border-radius: 1.5rem; display: none; }
+    .info-message.show { display: block; }
+    
+    /* ============ DASHBOARD ============ */
+    .dashboard { display: none; background: #f1f5f9; min-height: 100vh; }
+    .dashboard-header { background: #1e4a6e; color: white; padding: 1rem 1.2rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; }
+    .dashboard-header h2 { font-size: 1.3rem; display: flex; align-items: center; gap: 0.5rem; }
+    .dashboard-header .mini-logo { width: 32px; height: 32px; border-radius: 8px; background: white; padding: 4px; }
+    .logout-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 0.5rem 1rem; border-radius: 2rem; cursor: pointer; }
+    .hostel-list { padding: 1rem; display: flex; flex-direction: column; gap: 1.8rem; padding-bottom: 2rem; }
+    .hostel-card { background: white; border-radius: 1.5rem; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.05); cursor: pointer; transition: transform 0.2s; }
+    .hostel-card:hover { transform: scale(1.01); }
+    .hostel-img { width: 100%; height: 200px; object-fit: cover; background: #cbd5e1; }
+    .hostel-details { padding: 1.2rem; }
+    .hostel-name { font-size: 1.4rem; font-weight: 700; color: #0f2b3d; }
+    .price { font-size: 1.2rem; font-weight: 800; color: #1e4a6e; margin: 0.3rem 0; }
+    .location { display: flex; align-items: center; gap: 0.4rem; color: #334155; font-size: 0.85rem; margin: 0.5rem 0; }
+    
+    .room-type-prices { margin-top: 0.5rem; padding: 0.5rem; background: #f8fafc; border-radius: 0.5rem; }
+    .room-type-prices .room-price-item { font-size: 0.75rem; padding: 0.2rem 0; display: flex; justify-content: space-between; border-bottom: 1px solid #e2edf7; }
+    .room-type-prices .room-price-item:last-child { border-bottom: none; }
+    
+    .vacancy-section { background: #f8fafc; padding: 0.8rem; border-radius: 1rem; margin: 0.8rem 0; }
+    .vacancy-status { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+    .vacancy-badge { font-size: 0.8rem; font-weight: 700; padding: 0.3rem 0.8rem; border-radius: 2rem; }
+    .vacant { background: #dcfce7; color: #15803d; }
+    .occupied-warning { background: #fee2e2; color: #b91c1c; }
+    .vacancy-number { font-size: 1.1rem; font-weight: 700; }
+    .check-btn { background: #1e4a6e; color: white; border: none; padding: 0.4rem 1rem; border-radius: 2rem; font-size: 0.7rem; font-weight: 600; cursor: pointer; }
+    
+    /* COMPACT MANAGER PROFILE */
+    .manager-profile {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: #f8fafc;
+      padding: 0.4rem 0.6rem;
+      border-radius: 2rem;
+      margin: 0.5rem 0;
+    }
+    .manager-profile .profile-img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 2px solid #1e4a6e; background: #cbd5e1; flex-shrink: 0; }
+    .manager-profile .profile-info { flex: 1; display: flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
+    .manager-profile .profile-info .name { font-weight: 600; font-size: 0.8rem; color: #1e293b; }
+    .manager-profile .profile-info .contact { font-size: 0.65rem; color: #5b6e8c; }
+    .manager-profile .profile-actions { display: flex; gap: 0.3rem; }
+    .manager-profile .profile-actions a { display: inline-block; background: #eef2ff; padding: 0.15rem 0.5rem; border-radius: 2rem; text-decoration: none; font-size: 0.6rem; font-weight: 600; }
+    
+    .map-box { height: 220px; border-radius: 1rem; margin-top: 0.8rem; overflow: hidden; border: 1px solid #e2edf7; }
+    .direction-btn { background: #ea580c; color: white; border: none; padding: 0.6rem 1rem; border-radius: 2rem; font-size: 0.8rem; font-weight: 600; cursor: pointer; margin-top: 0.8rem; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; }
+    .direction-btn:hover { background: #c2410c; }
+    .small-note { font-size: 0.65rem; text-align: right; margin-top: 5px; color: #5f7f9e; }
+    .click-hint-card { margin-top: 8px; text-align: center; font-size: 0.7rem; background: #f1f5f9; padding: 6px; border-radius: 2rem; color: #1e4a6e; }
+    
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+    .modal-content { max-width: 500px; width: 90%; background: white; border-radius: 2rem; overflow: hidden; animation: modalFade 0.3s ease; }
+    @keyframes modalFade { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .modal-header { background: #1e4a6e; color: white; padding: 1rem; display: flex; justify-content: space-between; align-items: center; }
+    .modal-header h3 { font-size: 1.2rem; }
+    .close-modal { background: none; border: none; color: white; font-size: 1.8rem; cursor: pointer; }
+    .modal-body { padding: 1.2rem; }
+    .modal-room-img { width: 100%; border-radius: 1rem; margin-bottom: 1rem; }
+    .extra-images { display: flex; gap: 0.8rem; margin-top: 1rem; overflow-x: auto; padding-bottom: 0.5rem; }
+    .extra-img { width: 80px; height: 80px; object-fit: cover; border-radius: 0.8rem; cursor: pointer; border: 2px solid #e2edf7; }
+    
+    .sync-toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1e4a6e; color: white; padding: 8px 20px; border-radius: 30px; font-size: 0.7rem; opacity: 0; transition: opacity 0.3s; z-index: 999; pointer-events: none; }
+    .sync-toast.show { opacity: 1; }
+    .empty-state { padding: 3rem 1rem; text-align: center; color: #5b6e8c; }
+    .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
+    
+    /* ============ SYNC BADGE ============ */
+    .sync-badge {
+      background: #e6f0fa;
+      padding: 0.3rem;
+      text-align: center;
+      font-size: 0.6rem;
+      color: #1e4a6e;
+      border-bottom: 1px solid #e2edf7;
+    }
+  </style>
+</head>
+<body>
+<div class="app-container">
+  <!-- ============ HEADER WITH CUSTOM HOUSE + GRADUATION CAP LOGO ============ -->
+  <div class="app-header">
+    <div class="logo-container">
+      <svg class="logo-img" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="50" cy="50" r="48" fill="#1e4a6e"/>
+        <rect x="20" y="45" width="60" height="35" rx="2" fill="white" opacity="0.95"/>
+        <polygon points="10,45 50,15 90,45" fill="white" opacity="0.95"/>
+        <polygon points="50,15 85,30 50,45 15,30" fill="#1e4a6e" opacity="0.3"/>
+        <rect x="35" y="10" width="30" height="5" rx="2" fill="#f59e0b"/>
+        <circle cx="65" cy="12" r="3" fill="#f59e0b"/>
+        <line x1="62" y1="12" x2="55" y2="18" stroke="#f59e0b" stroke-width="2"/>
+        <rect x="40" y="55" width="20" height="25" rx="2" fill="#1e4a6e"/>
+        <circle cx="55" cy="67" r="2" fill="white"/>
+        <rect x="25" y="50" width="10" height="10" rx="1" fill="#1e4a6e" opacity="0.6"/>
+        <rect x="65" y="50" width="10" height="10" rx="1" fill="#1e4a6e" opacity="0.6"/>
+        <text x="50" y="32" font-size="12" text-anchor="middle" fill="#1e4a6e" font-weight="bold">🎓</text>
+      </svg>
+      <div class="logo-text">
+        <h1>UCC Abode</h1>
+        <span class="tagline">Find your perfect stay near campus</span>
+      </div>
+    </div>
+  </div>
+  
+  <div id="syncToast" class="sync-toast">🔄 Hostels updated from Manager Portal</div>
+  
+  <!-- ============ AUTH SCREEN ============ -->
+  <div id="authScreen" class="auth-screen">
+    <div class="auth-card">
+      <div class="tab-bar">
+        <button class="tab-btn active" data-auth="login">🔐 Login</button>
+        <button class="tab-btn" data-auth="signup">✨ Sign Up</button>
+      </div>
+      <div id="loginForm" class="auth-form active-form">
+        <form id="loginFormElement">
+          <div class="input-group">
+            <label>📧 Email address</label>
+            <input type="email" id="loginEmail" placeholder="student@ucc.edu.gh" required>
+          </div>
+          <div class="input-group">
+            <label>🔒 Password</label>
+            <input type="password" id="loginPassword" placeholder="••••••" required>
+          </div>
+          <button type="submit" class="btn-primary">→ Login to UCC Abode</button>
+          <div id="loginMessage" class="info-message"></div>
+          <div class="demo-note">🔐 Secure: Only previously signed-up users can login</div>
+        </form>
+      </div>
+      <div id="signupForm" class="auth-form">
+        <form id="signupFormElement">
+          <div class="input-group">
+            <label>👤 Full name</label>
+            <input type="text" id="signupName" placeholder="Kofi Annan" required>
+          </div>
+          <div class="input-group">
+            <label>📧 Email address</label>
+            <input type="email" id="signupEmail" placeholder="kofi@ucc.edu.gh" required>
+          </div>
+          <div class="input-group">
+            <label>🔒 Create password (min 4 chars)</label>
+            <input type="password" id="signupPassword" required>
+          </div>
+          <button type="submit" class="btn-primary">✨ Create Account</button>
+          <div id="signupMessage" class="info-message"></div>
+          <div class="demo-note">✅ After signup, use same email & password to login anytime</div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ DASHBOARD ============ -->
+  <div id="dashboard" class="dashboard">
+    <div class="dashboard-header">
+      <h2>
+        <svg class="mini-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="48" fill="#1e4a6e"/>
+          <polygon points="10,45 50,15 90,45" fill="white" opacity="0.95"/>
+          <rect x="20" y="45" width="60" height="35" rx="2" fill="white" opacity="0.95"/>
+          <polygon points="50,15 85,30 50,45 15,30" fill="#1e4a6e" opacity="0.3"/>
+          <rect x="40" y="55" width="20" height="25" rx="2" fill="#1e4a6e"/>
+          <text x="50" y="32" font-size="12" text-anchor="middle" fill="#1e4a6e" font-weight="bold">🎓</text>
+        </svg>
+        UCC Abode
+      </h2>
+      <button class="logout-btn" id="logoutBtn">Logout</button>
+    </div>
+    <div id="hostelListContainer" class="hostel-list"></div>
+  </div>
+</div>
+
+<!-- ============ MODAL ============ -->
+<div id="imageModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="modalHostelName">Room Gallery</h3>
+      <button class="close-modal" id="closeModalBtn">&times;</button>
+    </div>
+    <div class="modal-body">
+      <img id="modalMainImage" class="modal-room-img" src="" alt="Room view">
+      <div id="extraImagesContainer" class="extra-images"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+
+<script>
+  // ==============================================================
+  // UCC ABODE STUDENT APP - FULLY LINKED WITH MANAGER PORTAL
+  // Shared storage key: "ucc_abode_hostels_data"
+  // ==============================================================
+  
+  const STORAGE_USERS = "ucc_abode_users";
+  const STORAGE_SESSION = "ucc_abode_session";
+  const HOSTELS_DATA_KEY = "ucc_abode_hostels_data";
+
+  // ==============================================================
+  // AUTHENTICATION
+  // ==============================================================
+  function getUsers() { 
+    const users = localStorage.getItem(STORAGE_USERS);
+    return users ? JSON.parse(users) : []; 
+  }
+  
+  function saveUsers(users) { 
+    localStorage.setItem(STORAGE_USERS, JSON.stringify(users)); 
+  }
+  
+  function registerUser(name, email, password) {
+    const users = getUsers();
+    if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) {
+      return { success: false, message: "❌ This email is already registered." };
+    }
+    const newUser = { 
+      id: Date.now(), 
+      name: name.trim(), 
+      email: email.toLowerCase().trim(), 
+      password: password, 
+      createdAt: new Date().toISOString() 
+    };
+    users.push(newUser);
+    saveUsers(users);
+    return { success: true, message: "✅ Account created! You can now login." };
+  }
+  
+  function loginUser(email, password) {
+    const users = getUsers();
+    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
+    if (user) {
+      localStorage.setItem(STORAGE_SESSION, JSON.stringify({ 
+        userId: user.id, 
+        name: user.name, 
+        email: user.email 
+      }));
+      return { success: true, user: { name: user.name } };
+    }
+    return { success: false, message: "❌ Invalid email or password. Please sign up first." };
+  }
+  
+  function getCurrentSession() { 
+    const s = localStorage.getItem(STORAGE_SESSION); 
+    return s ? JSON.parse(s) : null; 
+  }
+  
+  function logoutUser() { 
+    localStorage.removeItem(STORAGE_SESSION); 
+  }
+  
+  function checkAutoLogin() { 
+    const session = getCurrentSession(); 
+    if (session) { 
+      showDashboard(session.name); 
+      return true; 
+    } 
+    return false; 
+  }
+  
+  function showMessage(el, msg, isError) {
+    const d = document.getElementById(el);
+    if (d) {
+      d.textContent = msg;
+      d.classList.add('show');
+      d.style.background = isError ? "#fee2e2" : "#dcfce7";
+      d.style.color = isError ? "#b91c1c" : "#15803d";
+      setTimeout(() => d.classList.remove('show'), 4000);
+    }
+  }
+
+  // ==============================================================
+  // LOAD HOSTELS FROM SHARED STORAGE (LINKED WITH MANAGER PORTAL)
+  // ==============================================================
+  function loadHostelsFromStorage() {
+    const stored = localStorage.getItem(HOSTELS_DATA_KEY);
+    if (stored) {
+      try {
+        const data = JSON.parse(stored);
+        // Show manager-registered hostels (id > 1000) and those with roomTypes
+        return data.filter(h => h.id > 1000 && h.roomTypes !== undefined);
+      } catch(e) {
+        return [];
+      }
+    }
+    return [];
+  }
+  
+  let hostelsData = loadHostelsFromStorage();
+  let lastDataHash = JSON.stringify(hostelsData);
+  const mapInstances = {};
+  const routingControls = {};
+
+  // ==============================================================
+  // MAP & DIRECTIONS
+  // ==============================================================
+  function getUserLocation(callback) {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => callback({ lat: position.coords.latitude, lng: position.coords.longitude }),
+        () => callback(null)
+      );
+    } else { 
+      callback(null); 
+    }
+  }
+  
+  function initMapWithDirections(mapElementId, destLat, destLng, hostelName, hostelAddress) {
+    if (!document.getElementById(mapElementId)) return;
+    if (mapInstances[mapElementId]) mapInstances[mapElementId].remove();
+    if (routingControls[mapElementId]) routingControls[mapElementId].remove();
+    
+    const map = L.map(mapElementId).setView([destLat, destLng], 16);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap',
+      subdomains: 'abcd',
+      maxZoom: 19
+    }).addTo(map);
+    L.marker([destLat, destLng]).addTo(map).bindPopup(`<b>${hostelName}</b><br>📍 ${hostelAddress}`).openPopup();
+    mapInstances[mapElementId] = map;
+    map.destLat = destLat; 
+    map.destLng = destLng; 
+    map.hostelName = hostelName; 
+    map.mapId = mapElementId;
+  }
+  
+  function addRoutingToMap(map, startLat, startLng, destLat, destLng, hostelName, mapId) {
+    if (routingControls[mapId]) routingControls[mapId].remove();
+    const routingControl = L.Routing.control({
+      waypoints: [L.latLng(startLat, startLng), L.latLng(destLat, destLng)],
+      routeWhileDragging: false,
+      showAlternatives: true,
+      lineOptions: { styles: [{ color: '#ea580c', opacity: 0.9, weight: 5 }] },
+      createMarker: function(i, wp) {
+        if (i === 0) {
+          return L.marker(wp.latLng, { icon: L.divIcon({ html: '📍', iconSize: [20, 20] }) }).bindPopup('Your Location');
+        }
+        return L.marker(wp.latLng, { icon: L.divIcon({ html: '🏠', iconSize: [25, 25] }) }).bindPopup(hostelName);
+      },
+      addWaypoints: false, 
+      draggableWaypoints: false, 
+      fitSelectedRoutes: true
+    }).addTo(map);
+    routingControls[mapId] = routingControl;
+    setTimeout(() => { 
+      const bounds = L.latLngBounds([startLat, startLng], [destLat, destLng]); 
+      map.fitBounds(bounds, { padding: [50, 50] }); 
+    }, 300);
+  }
+  
+  function showDirectionsToHostel(mapElementId, destLat, destLng, hostelName) {
+    const map = mapInstances[mapElementId];
+    if (!map) { 
+      alert("Map not ready."); 
+      return; 
+    }
+    if (routingControls[mapElementId]) routingControls[mapElementId].remove();
+    getUserLocation((userLoc) => {
+      if (!userLoc) {
+        if (confirm("📍 Could not get your location. Show directions from UCC Main Gate?")) {
+          addRoutingToMap(map, 5.1125, -1.2855, destLat, destLng, hostelName, mapElementId);
+        } else { 
+          alert("Please enable location services."); 
+        }
+        return;
+      }
+      addRoutingToMap(map, userLoc.lat, userLoc.lng, destLat, destLng, hostelName, mapElementId);
+    });
+  }
+
+  function checkVacancyAndPrompt(hostel) {
+    let totalVacant = 0;
+    let totalRooms = 0;
+    
+    if (hostel.roomTypes && hostel.roomTypes.length > 0) {
+      hostel.roomTypes.forEach(room => {
+        totalVacant += room.vacant || 0;
+        totalRooms += room.total || 0;
+      });
+    }
+    
+    const occupied = totalRooms - totalVacant;
+    
+    if (totalVacant === 0) {
+      alert(`🚫 ${hostel.name} is FULLY OCCUPIED!\n\nNo rooms available. Check back later.`);
+    } else if (totalVacant <= 5) {
+      if (confirm(`⚠️ ${hostel.name} has only ${totalVacant} room(s) left!\n\nOccupied: ${occupied}/${totalRooms}\n\nContact manager?`)) {
+        window.location.href = `tel:${hostel.managerContact}`;
+      }
+    } else {
+      alert(`✅ ${hostel.name} has ${totalVacant} vacant rooms out of ${totalRooms}.\n\nOccupied: ${occupied} rooms\nVacant: ${totalVacant} rooms`);
+    }
+  }
+  
+  function openRoomGallery(hostel) {
+    const modal = document.getElementById('imageModal');
+    const modalMainImage = document.getElementById('modalMainImage');
+    const extraContainer = document.getElementById('extraImagesContainer');
+    document.getElementById('modalHostelName').innerText = `${hostel.name} — Room Gallery`;
+    
+    let allImages = [];
+    if (hostel.roomTypes && hostel.roomTypes.length > 0) {
+      hostel.roomTypes.forEach(room => {
+        if (room.images && room.images.length > 0) {
+          allImages = allImages.concat(room.images);
+        }
+      });
+    }
+    
+    if (allImages.length === 0) {
+      modalMainImage.src = hostel.hostelImageUrl || 'https://picsum.photos/id/169/600/400';
+    } else {
+      modalMainImage.src = allImages[0];
+    }
+    modalMainImage.onerror = () => { modalMainImage.src = 'https://picsum.photos/id/169/600/400'; };
+    
+    extraContainer.innerHTML = '';
+    allImages.forEach(imgUrl => {
+      if (imgUrl) {
+        const thumb = document.createElement('img');
+        thumb.src = imgUrl;
+        thumb.className = 'extra-img';
+        thumb.onerror = () => { thumb.src = 'https://picsum.photos/id/100/200/200'; };
+        thumb.addEventListener('click', () => { modalMainImage.src = imgUrl; });
+        extraContainer.appendChild(thumb);
+      }
+    });
+    modal.style.display = 'flex';
+  }
+  
+  function showSyncToast(message = "🔄 Hostels updated from Manager Portal") {
+    const toast = document.getElementById('syncToast');
+    if (toast) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => { toast.classList.remove('show'); }, 2000);
+    }
+  }
+  
+  function refreshHostelsData() {
+    const newData = loadHostelsFromStorage();
+    const newHash = JSON.stringify(newData);
+    if (lastDataHash !== newHash) {
+      hostelsData = newData;
+      lastDataHash = newHash;
+      renderHostels();
+      showSyncToast();
+      return true;
+    }
+    return false;
+  }
+  
+  // ==============================================================
+  // RENDER HOSTELS
+  // ==============================================================
+  function renderHostels() {
+    const container = document.getElementById('hostelListContainer');
+    if (!container) return;
+    container.innerHTML = '';
+    
+    if (hostelsData.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="icon">🏨</div>
+          <h3>No Hostels Available Yet</h3>
+          <p style="margin-top: 0.5rem; font-size: 0.85rem;">Hostel managers are registering their properties.</p>
+          <p style="margin-top: 0.3rem; font-size: 0.75rem; color: #94a3b8;">Check back soon!</p>
+        </div>
+      `;
+      return;
+    }
+    
+    hostelsData.forEach(hostel => {
+      const card = document.createElement('div');
+      card.className = 'hostel-card';
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.check-btn') || e.target.closest('.direction-btn') || e.target.closest('.profile-actions')) return;
+        openRoomGallery(hostel);
+      });
+      
+      let totalVacant = 0;
+      let totalRooms = 0;
+      let roomTypeHtml = '';
+      
+      if (hostel.roomTypes && hostel.roomTypes.length > 0) {
+        hostel.roomTypes.forEach(room => {
+          totalVacant += room.vacant || 0;
+          totalRooms += room.total || 0;
+          roomTypeHtml += `
+            <div class="room-price-item">
+              <span>🛏️ ${room.name}</span>
+              <span style="font-weight:600; color:#1e4a6e;">💰 ${room.price || 'Price not set'}</span>
+              <span style="color:#15803d;">🟢 ${room.vacant || 0}/${room.total || 0}</span>
+            </div>
+          `;
+        });
+      }
+      
+      const vacancyClass = totalVacant === 0 ? 'occupied-warning' : 'vacant';
+      const vacancyText = totalVacant === 0 ? '❌ Fully Occupied' : `✅ ${totalVacant} rooms vacant`;
+      const mapId = `map-${hostel.id}`;
+      
+      const managerProfileImg = hostel.managerProfileImage || '';
+      
+      card.innerHTML = `
+        <img class="hostel-img" src="${hostel.hostelImageUrl}" alt="${hostel.name}" onerror="this.src='https://picsum.photos/id/104/600/400'">
+        <div class="hostel-details">
+          <div class="hostel-name">🏨 ${hostel.name}</div>
+          <div class="price">💰 ${hostel.price || 'Price not set'}</div>
+          <div class="location">📍 ${hostel.location}</div>
+          
+          <div class="room-type-prices">
+            <div style="font-weight:600; font-size:0.8rem; margin-bottom:0.3rem;">🛏️ Room Types & Prices (per academic year)</div>
+            ${roomTypeHtml}
+          </div>
+          
+          <div class="vacancy-section">
+            <div class="vacancy-status">
+              <span class="vacancy-badge ${vacancyClass}">${vacancyText}</span>
+              <span class="vacancy-number">📊 ${totalRooms - totalVacant}/${totalRooms} occupied</span>
+              <button class="check-btn" data-id="${hostel.id}">🔍 Check Availability</button>
+            </div>
+          </div>
+          
+          <div class="manager-profile">
+            <img class="profile-img" src="${managerProfileImg || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(hostel.managerName || 'Manager') + '&background=1e4a6e&color=fff&size=50'}" alt="${hostel.managerName || 'Manager'}">
+            <div class="profile-info">
+              <span class="name">📞 ${hostel.managerName || "Hostel Manager"}</span>
+              <span class="contact">📱 ${hostel.managerContact || "N/A"}</span>
+            </div>
+            <div class="profile-actions">
+              <a href="tel:${hostel.managerContact}">📞</a>
+              <a href="https://wa.me/${hostel.managerContact}" target="_blank">💬</a>
+            </div>
+          </div>
+          
+          <div class="map-box" id="${mapId}"></div>
+          <button class="direction-btn" data-id="${hostel.id}" data-lat="${hostel.lat}" data-lng="${hostel.lng}" data-name="${hostel.name}">🧭 Get Directions → Show Route from My Location</button>
+          <div class="small-note">🗺️ Tap direction arrow to get walking/driving route</div>
+          <div class="click-hint-card">👆 Tap card to see room photos</div>
+        </div>
+      `;
+      container.appendChild(card);
+    });
+    
+    setTimeout(() => {
+      hostelsData.forEach(hostel => {
+        const mapId = `map-${hostel.id}`;
+        if (document.getElementById(mapId)) {
+          initMapWithDirections(mapId, hostel.lat, hostel.lng, hostel.name, hostel.address || hostel.location);
+        }
+      });
+    }, 200);
+    
+    document.querySelectorAll('.check-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const hostel = hostelsData.find(h => h.id === parseInt(btn.dataset.id));
+        if (hostel) checkVacancyAndPrompt(hostel);
+      });
+    });
+    
+    document.querySelectorAll('.direction-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const lat = parseFloat(btn.dataset.lat), lng = parseFloat(btn.dataset.lng);
+        const name = btn.dataset.name, mapId = `map-${btn.dataset.id}`;
+        const original = btn.innerHTML;
+        btn.innerHTML = "⏳ Getting location & calculating route...";
+        btn.disabled = true;
+        showDirectionsToHostel(mapId, lat, lng, name);
+        setTimeout(() => { btn.innerHTML = original; btn.disabled = false; }, 3000);
+      });
+    });
+  }
+  
+  function showDashboard(userName = "") {
+    document.getElementById('authScreen').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    hostelsData = loadHostelsFromStorage();
+    lastDataHash = JSON.stringify(hostelsData);
+    renderHostels();
+    const header = document.querySelector('.dashboard-header h2');
+    if (header && userName) header.innerHTML = `🏠 UCC Abode · ${userName.split(' ')[0]}`;
+  }
+  
+  function showAuthScreen() {
+    document.getElementById('authScreen').style.display = 'block';
+    document.getElementById('dashboard').style.display = 'none';
+    document.getElementById('loginMessage')?.classList.remove('show');
+    document.getElementById('signupMessage')?.classList.remove('show');
+  }
+
+  // ==============================================================
+  // AUTO-SYNC WITH MANAGER PORTAL
+  // ==============================================================
+  
+  // Listen for changes from Manager Portal
+  window.addEventListener('storage', (event) => {
+    if (event.key === HOSTELS_DATA_KEY && getCurrentSession()) {
+      console.log("🔄 Storage event detected - refreshing hostels");
+      refreshHostelsData();
+    }
+  });
+  
+  // Periodic sync every 3 seconds
+  setInterval(() => {
+    if (getCurrentSession()) {
+      refreshHostelsData();
+    }
+  }, 3000);
+  
+  // ==============================================================
+  // EVENT HANDLERS
+  // ==============================================================
+  function handleLogin(e) {
+    e.preventDefault();
+    const email = document.getElementById('loginEmail').value.trim();
+    const pwd = document.getElementById('loginPassword').value.trim();
+    
+    if (!email) return showMessage('loginMessage', '📧 Enter email', true);
+    if (!pwd || pwd.length < 4) return showMessage('loginMessage', '🔐 Password min 4 chars', true);
+    if (!email.includes('@') || !email.includes('.')) return showMessage('loginMessage', '⚠️ Valid email', true);
+    
+    const res = loginUser(email, pwd);
+    if (res.success) {
+      showMessage('loginMessage', `✅ Welcome back ${res.user.name}!`, false);
+      setTimeout(() => showDashboard(res.user.name), 800);
+    } else { 
+      showMessage('loginMessage', res.message, true); 
+    }
+  }
+  
+  function handleSignup(e) {
+    e.preventDefault();
+    const name = document.getElementById('signupName').value.trim();
+    const email = document.getElementById('signupEmail').value.trim();
+    const pwd = document.getElementById('signupPassword').value.trim();
+    
+    if (!name) return showMessage('signupMessage', '👤 Enter name', true);
+    if (!email || !email.includes('@')) return showMessage('signupMessage', '📧 Valid email', true);
+    if (!pwd || pwd.length < 4) return showMessage('signupMessage', '🔒 Password min 4 chars', true);
+    
+    const res = registerUser(name, email, pwd);
+    if (res.success) {
+      showMessage('signupMessage', res.message, false);
+      setTimeout(() => {
+        document.querySelector('[data-auth="login"]').click();
+        document.getElementById('loginEmail').value = email;
+        showMessage('loginMessage', '✅ Account created! Login with your credentials.', false);
+      }, 1500);
+    } else { 
+      showMessage('signupMessage', res.message, true); 
+    }
+  }
+  
+  function handleLogout() { 
+    logoutUser(); 
+    showAuthScreen(); 
+  }
+  
+  function initAuthTabs() {
+    const loginTab = document.querySelector('[data-auth="login"]');
+    const signupTab = document.querySelector('[data-auth="signup"]');
+    loginTab.addEventListener('click', () => {
+      loginTab.classList.add('active'); 
+      signupTab.classList.remove('active');
+      document.getElementById('loginForm').classList.add('active-form');
+      document.getElementById('signupForm').classList.remove('active-form');
+    });
+    signupTab.addEventListener('click', () => {
+      signupTab.classList.add('active'); 
+      loginTab.classList.remove('active');
+      document.getElementById('signupForm').classList.add('active-form');
+      document.getElementById('loginForm').classList.remove('active-form');
+    });
+  }
+  
+  const modal = document.getElementById('imageModal');
+  document.getElementById('closeModalBtn').addEventListener('click', () => modal.style.display = 'none');
+  window.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
+  
+  document.getElementById('loginFormElement').addEventListener('submit', handleLogin);
+  document.getElementById('signupFormElement').addEventListener('submit', handleSignup);
+  document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+  
+  initAuthTabs();
+  
+  if (!checkAutoLogin()) {
+    showAuthScreen();
+  }
+  
+  console.log("✅ UCC Abode Student App: Fully linked with Manager Portal!");
+  console.log("📌 Shared storage key: " + HOSTELS_DATA_KEY);
+  console.log("🔄 Auto-sync every 3 seconds");
+</script>
+</body>
+</html>
